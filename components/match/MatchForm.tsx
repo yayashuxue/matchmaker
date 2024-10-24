@@ -26,6 +26,11 @@ export function MatchForm() {
   const [error, setError] = useState<string | null>(null);
   const [matchId, setMatchId] = useState<string | null>(null);
 
+  const [shareLinks, setShareLinks] = useState({
+    person1: "",
+    person2: "",
+  });
+
   const handleSubmit = async () => {
     setLoading(true);
     setError(null);
@@ -49,8 +54,8 @@ export function MatchForm() {
       }
 
       const data = await response.json();
-      // 保存返回的 matchId
-      setMatchId(data.id);
+      setMatchId(data.match.id);
+      setShareLinks(data.shareLinks);
       setCurrentStep("success");
     } catch (err) {
       setError(err.message);
@@ -59,22 +64,44 @@ export function MatchForm() {
     }
   };
 
-  // 然后在分享函数中使用
-  const handleShare = (recipientType: "person1" | "person2") => {
+  const handleShare = async (recipientType: "person1" | "person2") => {
     if (!matchId) return;
 
     const recipient = recipientType === "person1" ? person1 : person2;
     const otherPerson = recipientType === "person1" ? person2 : person1;
 
-    // 使用 matchId 生成链接
-    const matchLink = `${window.location.origin}/match/${matchId}`;
+    // 使用 matchId 和对应的 token 生成链接
+    const matchLink = `${window.location.origin}${shareLinks[recipientType]}`;
 
-    const message =
-      `Hey! I think you and @${otherPerson.instagram} would be great together! ✨\n\n` +
-      `Click here to see why: ${matchLink}`;
 
-    window.location.href = `sms:?body=${encodeURIComponent(message)}`;
+    const message = `Hey! I think you and @${otherPerson.instagram} would be great together! ✨
+
+  Click here to see why: ${matchLink}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Matchmaker",
+          text: message,
+          url: matchLink,
+        });
+      } catch (error) {
+        console.error("Error sharing:", error);
+      }
+    } else {
+      // 如果不支持 navigator.share，可以复制链接到剪贴板并提示用户
+      try {
+        await navigator.clipboard.writeText(message);
+        alert(
+          "Message copied to clipboard! You can paste it into any messaging app."
+        );
+      } catch (error) {
+        console.error("Failed to copy:", error);
+        alert("Unable to share. Please copy the message manually.");
+      }
+    }
   };
+
   if (currentStep === "success") {
     return (
       <Card>
@@ -87,16 +114,20 @@ export function MatchForm() {
 
           <div className="space-y-4">
             <Button
-              onClick={() => handleShare("")} // You'll need to add phone numbers
+              onClick={() => handleShare("person1")}
               className="w-full gap-2"
             >
               <MessageSquare className="w-4 h-4" />
               Text to {person1.name || `@${person1.instagram}`}
             </Button>
-            <Button onClick={() => handleShare("")} className="w-full gap-2">
+            <Button
+              onClick={() => handleShare("person2")}
+              className="w-full gap-2"
+            >
               <MessageSquare className="w-4 h-4" />
               Text to {person2.name || `@${person2.instagram}`}
             </Button>
+
             <Button
               variant="outline"
               onClick={() => {

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(req: Request) {
   try {
-    const { person1, person2, reason, matchmakerInstagram } = await req.json();
+    const { currentUser, person1, person2, reason, matchmakerInstagram } = await req.json();
 
     // Create or get users first
     const [dbPerson1, dbPerson2] = await Promise.all([
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       data: {
         person1Id: dbPerson1.id,
         person2Id: dbPerson2.id,
-        matchmakerId: dbPerson1.id, // 临时用第一个人作为 matchmaker
+        matchmakerId: currentUser, // 临时用第一个人作为 matchmaker
         reason,
       }
     });

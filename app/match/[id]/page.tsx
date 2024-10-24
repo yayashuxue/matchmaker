@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Heart, User, Loader2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { usePrivy } from "@privy-io/react-auth";
+import {useSearchParams} from "next/navigation";
 
 interface MatchDetail {
   id: string;
@@ -41,17 +42,31 @@ export default function MatchDetailPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [responding, setResponding] = useState(false);
+  const [viewerRole, setViewerRole] = useState<'person1' | 'person2' | null>(null);
+  const searchParams = useSearchParams();
+
+  const token = searchParams.get("token");
 
   useEffect(() => {
-    fetchMatchDetails();
-  }, [params.id]);
+    if (token) {
+      fetchMatchDetails();
+    } else {
+      setError("Invalid token");
+      setLoading(false);
+    }
+  }, [params.id, token]);
 
+  // Fetch match details including viewerRole
   const fetchMatchDetails = async () => {
     try {
-      const response = await fetch(`/api/match/${params.id}`);
+      const response = await fetch(
+        `/api/match/${params.id}?token=${encodeURIComponent(token || '')}`
+      );
       if (!response.ok) throw new Error("Failed to fetch match details");
       const data = await response.json();
-      setMatch(data);
+      setMatch(data.match);
+      console.log("viewerRole", data.viewerRole);
+      setViewerRole(data.viewerRole); // Set viewerRole from API response
     } catch (err) {
       setError("Could not load match details");
       console.error(err);
@@ -60,16 +75,19 @@ export default function MatchDetailPage({
     }
   };
 
-  const handleResponse = async (response: "accept" | "decline") => {
-    if (!match || !user) return;
+  const handleResponse = async (userResponse: "accept" | "decline") => {
+    if (!match || !token) return;
 
     setResponding(true);
     try {
-      const res = await fetch(`/api/match/${match.id}/respond`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ response }),
-      });
+      const res = await fetch(
+        `/api/match/${match.id}/respond?token=${encodeURIComponent(token)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ response: userResponse }),
+        }
+      );
 
       if (!res.ok) throw new Error("Failed to submit response");
 
@@ -108,13 +126,11 @@ export default function MatchDetailPage({
     );
   }
 
-  // 确定当前用户是否是匹配的一方
-  const isParticipant =
-    user && (match.person1.id === user.id || match.person2.id === user.id);
+  // Use viewerRole to determine if the user is a participant
+  const isParticipant = viewerRole === 'person1' || viewerRole === 'person2';
 
-  // 确定当前用户是哪一方（如果是参与者）
-  const userPosition =
-    user && match.person1.id === user.id ? "person1" : "person2";
+  // Determine which person the user is
+  const userPosition = viewerRole;
   const otherPerson =
     userPosition === "person1" ? match.person2 : match.person1;
 

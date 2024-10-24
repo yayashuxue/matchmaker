@@ -1,46 +1,47 @@
 import { prisma } from '@/lib/prisma';
+import {match} from 'assert';
+import { NextRequest } from 'next/server';
 
-
-// app/api/match/[id]/route.ts
 export async function GET(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { searchParams } = new URL(req.url);
-  const token = searchParams.get('token');
+  const token = req.nextUrl.searchParams.get('token');
 
   try {
+    console.log('searchParams:', req.nextUrl.searchParams);
     const match = await prisma.match.findUnique({
       where: { id: params.id },
       include: {
         person1: true,
-        person2: true
-      }
+        person2: true,
+        matchmaker: true,
+      },
     });
 
     if (!match) {
-      return new Response(
-        JSON.stringify({ error: 'Match not found' }),
-        { status: 404 }
-      );
+      return new Response(JSON.stringify({ error: 'Match not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    // 简单的 token 验证
+    // Token validation
     const isFirstPerson = token === match.person1Token;
     const isSecondPerson = token === match.person2Token;
 
     if (!isFirstPerson && !isSecondPerson) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid token' }),
-        { status: 403 }
-      );
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         match,
-        viewerRole: isFirstPerson ? 'person1' : 'person2'
+        viewerRole: isFirstPerson ? 'person1' : 'person2',
       }),
       { headers: { 'Content-Type': 'application/json' } }
     );
@@ -48,7 +49,10 @@ export async function GET(
     console.error('Failed to fetch match:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
-      { status: 500 }
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
     );
   }
 }
