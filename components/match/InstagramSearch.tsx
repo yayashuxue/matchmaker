@@ -37,6 +37,11 @@ export function InstagramSearch({
           throw new Error("Profile not found");
         }
 
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Invalid response format");
+        }
+
         const data = await response.json();
         setProfile(data);
         onChange({
@@ -45,7 +50,7 @@ export function InstagramSearch({
         });
       } catch (err) {
         console.error("Failed to fetch profile:", err);
-        setError("Could not find profile");
+        setError("Could not find profile. It can be instagram's problem. You may still proceed if you deem correct <3");
         setProfile(null);
       } finally {
         setLoading(false);

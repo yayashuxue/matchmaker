@@ -1,14 +1,55 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// prisma/schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
 generator client {
   provider = "prisma-client-js"
 }
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+// prisma/schema.prisma
+// prisma/schema.prisma
+model User {
+  id            String    @id @default(cuid())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  outsideId     String    @unique    // Privy ID
+  instagram     String?   @unique    // Instagram handle
+  name          String?
+  isVerified    Boolean   @default(false)
+  verifiedAt    DateTime?
+
+  // Relations
+  matchesMade   Match[]   @relation("Matchmaker")
+  receivedAsP1  Match[]   @relation("Person1")
+  receivedAsP2  Match[]   @relation("Person2")
+}
+
+model Match {
+  id              String    @id @default(cuid())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Matchmaker
+  matchmaker      User      @relation("Matchmaker", fields: [matchmakerId], references: [id])
+  matchmakerId    String
+
+  // Matched People
+  person1         User      @relation("Person1", fields: [person1Id], references: [id])
+  person1Id       String
+  person2         User      @relation("Person2", fields: [person2Id], references: [id])
+  person2Id       String
+
+  // Match Details
+  reason          String
+  status          String    @default("pending")   // pending, matched, rejected
+
+  // Access Tokens for direct links
+  person1Token    String    @unique @default(cuid())
+  person2Token    String    @unique @default(cuid())
+
+  // Responses
+  person1Response String?   // accepted, rejected
+  person2Response String?
 }
